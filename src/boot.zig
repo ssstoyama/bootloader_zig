@@ -8,6 +8,9 @@ var fs: *uefi.protocols.SimpleFileSystemProtocol = undefined;
 pub fn main() uefi.Status {
     var status: uefi.Status = undefined;
 
+    // 1. ブートローダーの初期化処理
+
+    // SimpleTextOutputProtocol 取得
     con_out = uefi.system_table.con_out orelse return .Unsupported;
     defer {
         printf("boot error: status={d}\r\n", .{status});
@@ -16,7 +19,10 @@ pub fn main() uefi.Status {
     status = con_out.clearScreen();
     if (status != .Success) return status;
 
+    // BootServices 取得
     bs = uefi.system_table.boot_services orelse return .Unsupported;
+
+    // SimpleFileSystemProtocol 取得
     status = bs.locateProtocol(&uefi.protocols.SimpleFileSystemProtocol.guid, null, @ptrCast(*?*anyopaque, &fs));
     if (status != .Success) return status;
 
