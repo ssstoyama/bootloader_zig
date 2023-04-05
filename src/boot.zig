@@ -1,5 +1,6 @@
 const std = @import("std");
 const uefi = std.os.uefi;
+const elf = std.elf;
 
 var con_out: *uefi.protocols.SimpleTextOutputProtocol = undefined;
 var bs: *uefi.tables.BootServices = undefined;
@@ -27,6 +28,40 @@ pub fn main() uefi.Status {
     if (status != .Success) return status;
 
     printf("initialized boot loader\r\n", .{});
+
+    // 2. カーネルのヘッダを読み込む
+
+    // ルートディレクトリを開く
+    var root_dir: *uefi.protocols.FileProtocol = undefined;
+    status = fs.openVolume(&root_dir);
+    if (status != .Success) return status;
+    printf("opened root directory\r\n", .{});
+
+    // カーネルファイルを開く
+    var kernel_file: *uefi.protocols.FileProtocol = undefined;
+    status = root_dir.open(
+        &kernel_file,
+        &[_:0]u16{ 'k', 'e', 'r', 'n', 'e', 'l', '.', 'e', 'l', 'f' },
+        uefi.protocols.FileProtocol.efi_file_mode_read,
+        uefi.protocols.FileProtocol.efi_file_read_only,
+    );
+    if (status != .Success) return status;
+    printf("opened kernel file\r\n", .{});
+
+    var header_buffer: [*]align(8) u8 = undefined;
+    var header_size: usize = @sizeOf(elf.Elf64_Ehdr);
+    // ヘッダ読み込み用のメモリを用意する
+    status = bs.allocatePool(uefi.tables.MemoryType.LoaderData, header_size, &header_buffer);
+    if (status != .Success) return status;
+    // kernel.elf からヘッダを読み込む
+    status = kernel_file.read(&header_size, header_buffer);
+    if (status != .Success) return status;
+    // header_buffer を Header 構造体にパースする
+    const header = elf.Header.parse(header_buffer[0..@sizeOf(elf.Elf64_Ehdr)]) catch |err| {
+        printf("failed to parse kernel header: {}\r\n", .{err});
+        return .LoadError;
+    };
+    printf("read kernel header: entry_point=0x{x}\r\n", .{header.entry});
 
     while (true) {}
 
