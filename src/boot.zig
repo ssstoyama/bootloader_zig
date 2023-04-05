@@ -11,10 +11,17 @@ pub fn main() uefi.Status {
     status = con_out.clearScreen();
     if (status != .Success) return status;
 
-    status = con_out.outputString(&[_:0]u16{ 'H', 'e', 'l', 'l', 'o', ' ', 'L', 'o', 'a', 'd', 'e', 'r', '!', '\r', '\n' });
-    if (status != .Success) return status;
+    printf("Hello, {s}!\r\n", .{"Loader"});
 
     while (true) {}
 
     return .LoadError;
+}
+
+fn printf(comptime format: []const u8, args: anytype) void {
+    var buf: [1024]u8 = undefined;
+    const text = std.fmt.bufPrint(&buf, format, args) catch unreachable;
+    for (text) |c| {
+        con_out.outputString(&[_:0]u16{ c, 0 }).err() catch unreachable;
+    }
 }
