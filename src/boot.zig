@@ -117,7 +117,9 @@ pub fn main() uefi.Status {
     status = root_dir.close();
     if (status != .Success) return status;
 
-    while (true) {}
+    // 4. カーネルを実行する
+    const kernel_entry = @intToPtr(*fn () void, header.entry);
+    kernel_entry();
 
     return .LoadError;
 }
