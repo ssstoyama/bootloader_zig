@@ -80,8 +80,13 @@ pub fn main() uefi.Status {
         }
     }
     // カーネルが収まるようにページ数(=メモリのサイズ)を計算する
-    var pages = (kernel_last_addr - kernel_first_addr + 0xfff) / 0x1000; // 0x1000=4096
+    const pages = (kernel_last_addr - kernel_first_addr + 0xfff) / 0x1000; // 0x1000=4096
     printf("kernel first addr: 0x{x}, kernel last addr: 0x{x}, pages=0x{x}\r\n", .{ kernel_first_addr, kernel_last_addr, pages });
+
+    // kernel_first_addr から pages ページ分のメモリを確保する
+    status = bs.allocatePages(.AllocateAddress, .LoaderData, pages, @ptrCast(*[*]align(4096) u8, &kernel_first_addr));
+    if (status != .Success) return status;
+    printf("allocated pages for kernel\r\n", .{});
 
     while (true) {}
 
