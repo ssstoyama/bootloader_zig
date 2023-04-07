@@ -63,6 +63,26 @@ pub fn main() uefi.Status {
     };
     printf("read kernel header: entry_point=0x{x}\r\n", .{header.entry});
 
+    // 3. カーネルのロードに必要なメモリを確保する
+
+    // カーネルのロードに必要なメモリを確保するためにページ数(1ページ=4KiB)を計算する
+    var kernel_first_addr: elf.Elf64_Addr align(4096) = std.math.maxInt(elf.Elf64_Addr);
+    var kernel_last_addr: elf.Elf64_Addr = 0;
+    var iter = header.program_header_iterator(kernel_file);
+    while (try iter.next()) |phdr| {
+        // プログラムヘッダタイプ LOAD 以外はスキップ
+        if (phdr.p_type != elf.PT_LOAD) continue;
+        if (phdr.p_vaddr < kernel_first_addr) {
+            kernel_first_addr = phdr.p_vaddr;
+        }
+        if (phdr.p_vaddr + phdr.p_memsz > kernel_last_addr) {
+            kernel_last_addr = phdr.p_vaddr + phdr.p_memsz;
+        }
+    }
+    // カーネルが収まるようにページ数(=メモリのサイズ)を計算する
+    var pages = (kernel_last_addr - kernel_first_addr + 0xfff) / 0x1000; // 0x1000=4096
+    printf("kernel first addr: 0x{x}, kernel last addr: 0x{x}, pages=0x{x}\r\n", .{ kernel_first_addr, kernel_last_addr, pages });
+
     while (true) {}
 
     return .LoadError;
