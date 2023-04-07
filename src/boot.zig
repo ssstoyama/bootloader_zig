@@ -109,6 +109,14 @@ pub fn main() uefi.Status {
         );
     }
 
+    // 不要になったメモリ、ファイルの後始末
+    status = bs.freePool(header_buffer);
+    if (status != .Success) return status;
+    status = kernel_file.close();
+    if (status != .Success) return status;
+    status = root_dir.close();
+    if (status != .Success) return status;
+
     while (true) {}
 
     return .LoadError;
