@@ -117,11 +117,57 @@ pub fn main() uefi.Status {
     status = root_dir.close();
     if (status != .Success) return status;
 
+    var gop: *uefi.protocols.GraphicsOutputProtocol = undefined;
+    status = bs.locateProtocol(&uefi.protocols.GraphicsOutputProtocol.guid, null, @ptrCast(*?*anyopaque, &gop));
+    if (status != .Success) return status;
+    const frame_buffer_config = FrameBufferConfig{
+        .frame_buffer = @intToPtr([*]u8, gop.mode.frame_buffer_base),
+        .pixels_per_scan_line = gop.mode.info.pixels_per_scan_line,
+        .horizontal_resolution = gop.mode.info.horizontal_resolution,
+        .vertical_resolution = gop.mode.info.vertical_resolution,
+        .pixel_format = switch (gop.mode.info.pixel_format) {
+            .PixelRedGreenBlueReserved8BitPerColor => PixelFormat.PixelRGBResv8BitPerColor,
+            .PixelBlueGreenRedReserved8BitPerColor => PixelFormat.PixelBGRResv8BitPerColor,
+            else => unreachable,
+        },
+    };
+
     // 4. カーネルを実行する
-    const kernel_entry = @intToPtr(*fn () void, header.entry);
-    kernel_entry();
+    const boot_info = BootInfo{
+        .frame_buffer_config = &frame_buffer_config,
+    };
+    printf("boot info pointer: {*}\r\n", .{&boot_info});
+    startKernel(header.entry, &boot_info);
 
     return .LoadError;
+}
+
+pub const BootInfo = extern struct {
+    frame_buffer_config: *const FrameBufferConfig,
+};
+
+pub const FrameBufferConfig = extern struct {
+    frame_buffer: [*]u8,
+    pixels_per_scan_line: u32,
+    horizontal_resolution: u32,
+    vertical_resolution: u32,
+    pixel_format: PixelFormat,
+};
+
+pub const PixelFormat = enum(u8) {
+    PixelRGBResv8BitPerColor = 1,
+    PixelBGRResv8BitPerColor = 2,
+};
+
+fn startKernel(entry_point: u64, boot_info: *const BootInfo) void {
+    // RDI レジスタ(第1引数)に BootInfo 構造体へのポインタを渡す
+    // RAX レジスタに関数のアドレスを渡して実行する
+    asm volatile (
+        \\ callq *%rax
+        :
+        : [entry_point] "{rax}" (entry_point),
+          [boot_info] "{rdi}" (boot_info),
+    );
 }
 
 fn printf(comptime format: []const u8, args: anytype) void {
