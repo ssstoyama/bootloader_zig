@@ -88,6 +88,27 @@ pub fn main() uefi.Status {
     if (status != .Success) return status;
     printf("allocated pages for kernel\r\n", .{});
 
+    iter = header.program_header_iterator(kernel_file);
+    while (try iter.next()) |phdr| {
+        if (phdr.p_type != elf.PT_LOAD) continue;
+
+        // ファイルの読み込み位置をセットする
+        status = kernel_file.setPosition(phdr.p_offset);
+        if (status != .Success) return status;
+
+        // カーネルセグメント読み込み先のメモリ
+        var segment: [*]u8 = @intToPtr([*]u8, phdr.p_vaddr);
+        // カーネルセグメントのサイズ
+        var mem_size: usize = phdr.p_memsz;
+        // メモリにカーネルのセグメントを読み込む
+        status = kernel_file.read(&mem_size, segment);
+        if (status != .Success) return status;
+        printf(
+            "load segment: addr=0x{x}, offset=0x{x}, mem_size=0x{x}\r\n",
+            .{ phdr.p_vaddr, phdr.p_offset, phdr.p_memsz },
+        );
+    }
+
     while (true) {}
 
     return .LoadError;
