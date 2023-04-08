@@ -160,6 +160,14 @@ pub fn main() uefi.Status {
             "load segment: addr=0x{x}, offset=0x{x}, mem_size=0x{x}\r\n",
             .{ phdr.p_vaddr, phdr.p_offset, phdr.p_memsz },
         );
+
+        // 初期化していない変数がある場合はメモリの値を 0 で埋める。
+        // bss セグメント(初期化していないグローバル変数用のセグメント)がある場合は必要。
+        var zero_fill_count = phdr.p_memsz - phdr.p_filesz;
+        if (zero_fill_count > 0) {
+            bs.setMem(@intToPtr([*]u8, phdr.p_vaddr + phdr.p_filesz), zero_fill_count, 0);
+        }
+        printf("zero fill count: 0x{x}\r\n", .{zero_fill_count});
     }
 
     // ----------------------
