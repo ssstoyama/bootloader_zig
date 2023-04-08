@@ -13,7 +13,7 @@ pub fn drawBG(frame_buffer_config: *const FrameBufferConfig) void {
     while (x < frame_buffer_config.horizontal_resolution) : (x += 1) {
         var y: usize = 0;
         while (y < frame_buffer_config.vertical_resolution) : (y += 1) {
-            // ピクセルに黒色をセットする
+            // ピクセルに白色をセットする
             var p = @ptrCast([*]u8, &frame_buffer_config.frame_buffer[4 * (frame_buffer_config.pixels_per_scan_line * y + x)]);
             p[0] = 255;
             p[1] = 255;
