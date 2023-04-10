@@ -25,7 +25,7 @@ RUN apt update && apt install -y \
       git \
       qemu-system-x86 \
       vim \
-      build-essential \
+      binutils \
  && apt clean \
  && rm -rf /var/lib/apt/lists/*
 
