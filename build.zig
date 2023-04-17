@@ -59,8 +59,10 @@ fn qemuCommand(b: *std.Build, is_debug: bool) *std.Build.RunStep {
         "1G",
         "-bios",
         "/usr/share/ovmf/OVMF.fd",
-        "-hda",
-        "fat:rw:fs",
+        "-drive",
+        "if=ide,index=0,media=disk,format=raw,file=usb.img",
+        "-device",
+        "nec-usb-xhci,id=xhci",
         "-monitor",
         "stdio",
     };

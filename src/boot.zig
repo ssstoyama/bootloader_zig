@@ -4,7 +4,6 @@ const elf = std.elf;
 
 var bs: *uefi.tables.BootServices = undefined;
 var con_out: *uefi.protocols.SimpleTextOutputProtocol = undefined;
-var fs: *uefi.protocols.SimpleFileSystemProtocol = undefined;
 var gop: *uefi.protocols.GraphicsOutputProtocol = undefined;
 
 pub fn main() uefi.Status {
@@ -29,13 +28,6 @@ pub fn main() uefi.Status {
         return .Unsupported;
     };
 
-    // SimpleFileSystemProtocol 取得
-    status = bs.locateProtocol(&uefi.protocols.SimpleFileSystemProtocol.guid, null, @ptrCast(*?*anyopaque, &fs));
-    if (status != .Success) {
-        printf("failed to locate file system protocol: {d}\r\n", .{status});
-        return status;
-    }
-
     // GraphicsOutputProtocol 取得
     status = bs.locateProtocol(&uefi.protocols.GraphicsOutputProtocol.guid, null, @ptrCast(*?*anyopaque, &gop));
     if (status != .Success) {
@@ -51,7 +43,7 @@ pub fn main() uefi.Status {
 
     // ルートディレクトリを開く
     var root_dir: *uefi.protocols.FileProtocol = undefined;
-    status = fs.openVolume(&root_dir);
+    status = openRootDir(&root_dir);
     if (status != .Success) {
         printf("failed to open root directory: {d}\r\n", .{status});
         return status;
@@ -259,6 +251,45 @@ fn startKernel(entry_point: u64, boot_info: *const BootInfo) void {
         : [entry_point] "{rax}" (entry_point),
           [boot_info] "{rdi}" (boot_info),
     );
+}
+
+fn openRootDir(root_dir: **uefi.protocols.FileProtocol) uefi.Status {
+    var status: uefi.Status = undefined;
+    var loaded_image: *uefi.protocols.LoadedImageProtocol = undefined;
+    var fs: *uefi.protocols.SimpleFileSystemProtocol = undefined;
+
+    status = bs.openProtocol(
+        uefi.handle,
+        &uefi.protocols.LoadedImageProtocol.guid,
+        @ptrCast(*?*anyopaque, &loaded_image),
+        uefi.handle,
+        null,
+        .{ .by_handle_protocol = true },
+    );
+    if (status != .Success) {
+        printf("failed to open loaded image protocol: {d}\r\n", .{status});
+        return status;
+    }
+
+    var device_handle = loaded_image.device_handle orelse {
+        printf("failed to get device handle\r\n", .{});
+        return uefi.Status.Unsupported;
+    };
+    printf("loaded image: device_handle={*}\r\n", .{device_handle});
+    status = bs.openProtocol(
+        device_handle,
+        &uefi.protocols.SimpleFileSystemProtocol.guid,
+        @ptrCast(*?*anyopaque, &fs),
+        uefi.handle,
+        null,
+        .{ .by_handle_protocol = true },
+    );
+    if (status != .Success) {
+        printf("failed to open device handle: {d}\r\n", .{status});
+        return status;
+    }
+
+    return fs.openVolume(root_dir);
 }
 
 fn printf(comptime format: []const u8, args: anytype) void {

@@ -26,6 +26,7 @@ RUN apt update && apt install -y \
       qemu-system-x86 \
       vim \
       binutils \
+      dosfstools \
  && apt clean \
  && rm -rf /var/lib/apt/lists/*
 
