@@ -2,6 +2,11 @@ const std = @import("std");
 
 pub fn build(b: *std.Build) !void {
     const is_debug = b.option(bool, "debug", "debugging in qemu") orelse false;
+    const is_clean = b.option(bool, "clean", "clean output and cache") orelse false;
+
+    if (is_clean) {
+        try runClean(b);
+    }
 
     var optimize: std.builtin.Mode = .ReleaseSafe;
     if (is_debug) {
@@ -64,4 +69,16 @@ fn qemuCommand(b: *std.Build, is_debug: bool) *std.Build.RunStep {
         return b.addSystemCommand(&debug_args);
     }
     return b.addSystemCommand(&args);
+}
+
+fn runClean(b: *std.Build) !void {
+    const rm_args_list = [_][3][]const u8{
+        [3][]const u8{ "rm", "-rf", "fs" },
+        [3][]const u8{ "rm", "-rf", "zig-cache" },
+        [3][]const u8{ "rm", "-rf", "zig-out" },
+    };
+    for (rm_args_list) |rm_args| {
+        var rm_process = std.ChildProcess.init(&rm_args, b.allocator);
+        _ = try rm_process.spawnAndWait();
+    }
 }
