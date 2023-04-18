@@ -50,6 +50,13 @@ pub fn main() uefi.Status {
     }
     printf("opened root directory\r\n", .{});
 
+    printf("list files in root directory\r\n", .{});
+    status = listDir(root_dir);
+    if (status != .Success) {
+        printf("failed to list root directory: {d}\r\n", .{status});
+        return status;
+    }
+
     // カーネルファイルを開く
     var kernel_file: *uefi.protocols.FileProtocol = undefined;
     status = root_dir.open(
@@ -290,6 +297,29 @@ fn openRootDir(root_dir: **uefi.protocols.FileProtocol) uefi.Status {
     }
 
     return fs.openVolume(root_dir);
+}
+
+fn listDir(dir: *uefi.protocols.FileProtocol) uefi.Status {
+    var status: uefi.Status = undefined;
+    var info_buffer: [1024]u8 align(8) = undefined;
+
+    while (true) {
+        var info_size: usize = info_buffer.len;
+        status = dir.read(&info_size, info_buffer[0..]);
+        if (status != .Success) return status;
+        if (info_size == 0) break;
+
+        var info: *uefi.protocols.FileInfo = @ptrCast(*uefi.protocols.FileInfo, &info_buffer);
+
+        status = con_out.outputString(&[_:0]u16{ '-', ' ' });
+        if (status != .Success) return status;
+        status = con_out.outputString(info.getFileName());
+        if (status != .Success) return status;
+        status = con_out.outputString(&[_:0]u16{ '\r', '\n' });
+        if (status != .Success) return status;
+    }
+
+    return uefi.Status.Success;
 }
 
 fn printf(comptime format: []const u8, args: anytype) void {
