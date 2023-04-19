@@ -1,10 +1,11 @@
+const arch = @import("arch");
 const BootInfo = @import("boot.zig").BootInfo;
 const FrameBufferConfig = @import("boot.zig").FrameBufferConfig;
 
 export fn kernel_main(boot_info: *const BootInfo) void {
     drawBG(boot_info.frame_buffer_config);
     drawHello(boot_info.frame_buffer_config, 100, 100);
-    while (true) asm volatile ("hlt");
+    arch.halt();
 }
 
 // 画面全体を白で塗りつぶす

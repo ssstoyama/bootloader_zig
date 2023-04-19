@@ -1,6 +1,7 @@
 const std = @import("std");
 const uefi = std.os.uefi;
 const elf = std.elf;
+const arch = @import("arch");
 
 var bs: *uefi.tables.BootServices = undefined;
 var con_out: *uefi.protocols.SimpleTextOutputProtocol = undefined;
@@ -227,7 +228,7 @@ pub fn main() uefi.Status {
     // ----------------------
     // カーネル呼び出し
     // ----------------------
-    startKernel(header.entry, &boot_info);
+    arch.startKernel(header.entry, &boot_info);
 
     return .LoadError;
 }
@@ -248,17 +249,6 @@ pub const PixelFormat = enum(u8) {
     PixelRGBResv8BitPerColor = 1,
     PixelBGRResv8BitPerColor = 2,
 };
-
-fn startKernel(entry_point: u64, boot_info: *const BootInfo) void {
-    // RDI レジスタ(第1引数)に BootInfo 構造体へのポインタを渡す
-    // RAX レジスタに関数のアドレスを渡して実行する
-    asm volatile (
-        \\ callq *%rax
-        :
-        : [entry_point] "{rax}" (entry_point),
-          [boot_info] "{rdi}" (boot_info),
-    );
-}
 
 fn openRootDir(root_dir: **uefi.protocols.FileProtocol) uefi.Status {
     var status: uefi.Status = undefined;
